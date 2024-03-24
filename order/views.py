@@ -2,12 +2,16 @@ from rest_framework import views
 from rest_framework.decorators import permission_classes
 from rest_framework import permissions
 from order.models import Order, COMING, WAY, FINISH, CANCEL
-from order.serializers import OrderCreateSerializer, OrderPairSerializer, OrderCancelSerializer
+from order.serializers import OrderCreateSerializer, OrderPairSerializer, OrderCancelSerializer,ReviewSerializer
 from rest_framework.response import Response
 from clients.models import Client
-from drivers.models import Driver
+from drivers.models import Driver, DriverStars
 from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
-
+from datetime import datetime,timedelta
+from django.utils import timezone
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
 # Create your views here.
 
 class OrderCreateView(views.APIView):
@@ -92,11 +96,14 @@ class DriverInPlaceView(views.APIView):
         order = Order.objects.filter(driver=driver,order_status=COMING).first()        
         if order:
             order.order_status = WAY
+            order.start_time = datetime.now()
+            
             order.save()
             return Response({
                 "success": True,
                 "message": "Trip is started",
-                "dropoff_location": order.dropoff_location
+                "dropoff_location": order.dropoff_location,
+                "start_time": order.start_time
             })  
         elif order.order_status == CANCEL:
             return Response({
@@ -119,10 +126,12 @@ class TripFinished(views.APIView):
         order = Order.objects.filter(driver=driver,order_status=WAY).first()
         if order:
             order.order_status = FINISH
+            order.end_time = datetime.now()
+            # order.total_time = order.end_time - order.start_time
             order.save()
             return Response({
                 "success": True,
-                "message": "Trip is finished"
+                "message": "Order has been finished"
             })
         else:
             return Response({
@@ -149,3 +158,40 @@ class OrderCancelView(views.APIView):
                 "message": "Something went wrong"
             })
     
+
+class ReviewView(views.APIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated, ]
+
+    def post(self,request,*args,**kwargs):
+        client = self.request.user
+        client = Client.objects.get(id=client)  
+        order = Order.objects.filter(client=client).first()
+        driver = order.driver
+        self.request.data["driver"] = driver.id
+        self.request.data["client"] = client.id
+        self.request.data["order"] = order.id
+        print(self.request.data)
+        serializer = ReviewSerializer(data=self.request.data)
+        if serializer.is_valid(raise_exception=True):
+            stars = serializer.validated_data.get("stars")
+            total_stars = DriverStars.objects.filter(driver=driver)
+            total_stars_count = total_stars.count()            
+            total_stars_sum = sum([star.stars for star in total_stars])
+            total_stars_sum += stars        
+            new_average_rating = total_stars_sum / (total_stars_count + 1)            
+            driver.rating = new_average_rating
+            driver.save()        
+            serializer.save()
+            print(driver.rating)
+            return Response({
+                "success": True,
+                "message": "Thank you for your feedback"
+            })
+        else:
+            return Response({
+                "success": False,
+                "message": "Something wnet wrong"
+            })
+        
+        

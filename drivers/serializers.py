@@ -152,7 +152,7 @@ class DriverChangeInfoSerializer(serializers.ModelSerializer):
         instance.username = validated_data.get("username",instance.username)
         instance.first_name = validated_data.get("first_name",instance.first_name)
         instance.last_name = validated_data.get("last_name",instance.last_name)
-
+        instance.save()
         if validated_data.get("password"):
             instance.set_password(validated_data.get("password"))
         if instance.auth_status == VERIFIED:
@@ -180,62 +180,59 @@ class DriverChangePhotoSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(TokenObtainSerializer):
+
     def __init__(self,*args,**kwargs):
         super(LoginSerializer,self).__init__(*args,**kwargs)
         self.fields['userinput'] = serializers.CharField(required=True)
         self.fields['username'] = serializers.CharField(required=False,read_only=True)
 
+    
+    def validate(self,data):
+        
+        self.auth_validate(self,data)        
+        data = self.user.token()
+        data["username"] = self.user.username
+        return data
+
+    @staticmethod    
     def auth_validate(self,data):
-        user_input = data.get('userinput')
-        if user_type_regex(user_input) == 'username':
-            username = user_input
-        elif user_type_regex(user_input) == 'email':
-            user = self.get_user(email__iexact=user_input)
+        
+        userinput = data.get("userinput")
+        
+        if user_type_regex(userinput) == "username":    
             username = user.username
-        elif user_type_regex(user_input) == 'phone':
-            user = self.get_user(phone_number=user_input)
+
+        elif user_type_regex(userinput) == 'email':
+            user = Driver.objects.get(email__iexact=userinput)
+            username = user.username
+        elif user_type_regex(userinput) == "phone":
+            user = Driver.objects.get(phone_number__iexact=userinput)
             username = user.username
         else:
             data = {
-                "success":False,
-                "message":"Siz email,username yoki telefon raqamini kiritishingiz kerak"
+                "success": False,
+                "message": "You must enter username, email or phone number"
             }
-            raise ValidationError(data)
         
-        # User_status tekshirilishi kerak
-        current_user = Driver.objects.filter(username=username,password=data.get("password")).first()
-        if current_user is not None and current_user.auth_status in [NEW, VERIFIED]:
-            raise ValidationError({
-                "success":False,
-                "message":"Siz ro'yxatdan to'liq o'tmagansiz"
-            })
+            raise NotFound(data)
         
-        user = Driver.objects.get(username=username) # User databaseda bor yoki yo'qligini tekshirish
+        user = Driver.objects.get(username=username)
         if user is not None:
             self.user = user
         else:
-            raise ValidationError({
-                "success":False,
-                "message":"Login yoki parol xato.Iltimos qayta urinib ko'ring"
+            NotFound({
+                "success": False,
+                "message": "Wrong credentials"
             })
-        
-    def validate(self,data):
-        self.auth_validate(data)
-        if self.user.auth_status not in [DONE, ]:
-            raise PermissionDenied("Siz ro'yxatdan to'liq o'tmagansiz")
-        data = self.user.token()
-        data['auth_status'] = self.user.auth_status
-        data['username'] = self.user.username
-        return data
 
     def get_user(self,**kwargs):
         users = Driver.objects.filter(**kwargs)
         if not users.exists():
             data = {
-                "success":False,
-                "message":"Bunday user topilmadi"
-                }
-            raise PermissionDenied(data)                        
+                "success": False,
+                "message": "User not found"
+            }
+            PermissionDenied(data)
         return users.first()
 
 
@@ -416,4 +413,27 @@ class UploadLicensePhotoSerializer(serializers.ModelSerializer):
             instance.photo = photo
             instance.save()
             return instance
+
+
+class SupportSerializer(serializers.ModelSerializer):
+    text = serializers.CharField(required=True)
+
+    class Meta:
+        model = Driver
+        fields = [
+            "text",
+            "driver"
+        ]
+    
+    def validate(self,data):
+        text = data.get("text")
+        if len(text) > 500:
+            raise ValidationError({
+                "success": False,
+                "message": "Text must be less than 500"
+            })
+
+    def save(self,validated_data,*args,**kwargs):
+        return super(SupportSerializer,self).save(validated_data,*args,**kwargs)
+
 

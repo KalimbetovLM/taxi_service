@@ -1,9 +1,9 @@
 from rest_framework.generics import CreateAPIView, UpdateAPIView
-from drivers.models import Driver, DriverConfirmation,Car, DriversLicense
+from drivers.models import Driver, DriverConfirmation,Car, DriversLicense, Support
 from drivers.serializers import DriverRegisterSerializer, DriverChangeInfoSerializer, \
 DriverChangePhotoSerializer, LoginSerializer, TokenRefreshSerializer, LogOutSerializer, \
 ForgotPasswordSerializer, ResetPasswordSerializer, RegisterCarSerializer, UpdateCarPhotoSerializer, \
-RegisterLicenseSerializer, UploadLicensePhotoSerializer
+RegisterLicenseSerializer, UploadLicensePhotoSerializer, SupportSerializer
 from rest_framework.decorators import permission_classes
 from rest_framework import permissions
 from rest_framework.views import APIView
@@ -352,6 +352,47 @@ class UploadLicensePhotoView(APIView):
             })
         else:
             return Response(serializer.errors,status=400)
+
+class SupportView(APIView):
+    permission_classes = [permissions.IsAuthenticated, ]
+    serializer_class = SupportSerializer
+    model = Support
+
+    def post(self,request,*args,**kwargs):
+        driver_id = self.request.user
+        driver = Driver.objects.get(id=driver_id)
+        self.request.data["driver"] = driver
+        serializer = self.serializer_class(data=self.request.data)
+        if serializer.is_valid(raise_exception=True):
+            self.serializer_class.save(serializer.validated_data,*args,**kwargs)
+            return Response({
+                "success": True,
+                "message": "Message has been sent"
+            })
+        else:
+            return Response(serializer.errors,status=400)
+        
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

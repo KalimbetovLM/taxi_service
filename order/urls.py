@@ -1,6 +1,6 @@
 from django.urls import path
 from order.views import OrderCreateView, OrderListView, OrderPairView, DriverInPlaceView, TripFinished, \
-OrderCancelView
+OrderCancelView,ReviewView
 
 app_name="order"
 urlpatterns = [
@@ -10,4 +10,5 @@ urlpatterns = [
     path("inplace/",DriverInPlaceView.as_view()),
     path("finished/",TripFinished.as_view()),
     path("cancel/",OrderCancelView.as_view()),
+    path('review/',ReviewView.as_view())
 ]

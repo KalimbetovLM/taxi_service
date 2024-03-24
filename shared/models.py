@@ -8,16 +8,17 @@ from random import randint
 
 NEW, VERIFIED, DONE = ("new","verified","done")
 
-AUTH_STATUSES = (
-        (NEW, 'New'),
-        (VERIFIED, 'Verified'),
-        (DONE, 'Done')
-    )
 
 class BaseModel(AbstractBaseUser):
     USERNAME_FIELD = 'username'
     ID_FIELD = 'id'
     REQUIRED_FIELDS = ['id','phone_number']
+
+    AUTH_STATUSES = (
+        (NEW, 'New'),
+        (VERIFIED, 'Verified'),
+        (DONE, 'Done')
+    )
 
     
     id = models.CharField(default=set_id,primary_key=True,unique=True,max_length=15)
@@ -29,6 +30,7 @@ class BaseModel(AbstractBaseUser):
     phone_number = models.CharField(max_length=15,unique=True)
     date_joined = models.DateTimeField(auto_now_add=True)
 
+    
     def __str__(self):
         return self.id
     

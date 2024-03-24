@@ -1,6 +1,6 @@
 from django.db import models
 from project_taxi.utilities import set_id
-
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 # Create your models here.
 
@@ -27,3 +27,11 @@ class Order(models.Model):
         return self.id
     
     
+class Review(models.Model):
+    client = models.ForeignKey('clients.Client',on_delete=models.CASCADE,related_name='client_reviews')
+    driver = models.ForeignKey('drivers.Driver',on_delete=models.CASCADE,related_name='driver_reviews')
+    order = models.ForeignKey('order.Order',on_delete=models.CASCADE,related_name="client_orders")
+    text = models.TextField(max_length=500,blank=True,null=True)
+    stars = models.IntegerField(validators=[MinValueValidator(1),MaxValueValidator(5)])
+
+

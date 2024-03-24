@@ -9,7 +9,7 @@ from datetime import datetime,timedelta
 from rest_framework.exceptions import ValidationError
 from colorfield.fields import ColorField
 from django.contrib.auth.models import Group, Permission
-from shared.models import BaseModel, AUTH_STATUSES, NEW
+from shared.models import BaseModel, NEW
 
 # Create your models here.
 
@@ -47,23 +47,15 @@ class DriversLicense(models.Model):
         return f"{self.id}"
 
 
-
-
 class Driver(BaseModel):
 
     photo = models.ImageField(default='drivers/default_driver_image/png',upload_to='drivers/')
-    given_stars = models.IntegerField(validators=[MinValueValidator(1),MaxValueValidator(5)],default=1)
-    rating = models.DecimalField(default=0,decimal_places=2,max_digits=3)
-    
+    rating = models.DecimalField(decimal_places=2,max_digits=3,default=0)
     groups = models.ManyToManyField(Group, related_name='driver_groups', related_query_name='driver_group')
     user_permissions = models.ManyToManyField(Permission, related_name='driver_user_permissions', related_query_name='driver_user_permission')
 
     def __str__(self):
         return self.id
-    
-    # @property
-    # def auth_status(self):
-    #     return self.auth_status
     
     @property
     def full_name(self):
@@ -119,3 +111,16 @@ class DriverConfirmation(models.Model):
         if not self.pk:
             self.expiration_time = datetime.now() + timedelta(minutes=EXPIRATION_TIME)
         super(DriverConfirmation,self).save(*args,**kwargs)
+
+
+class DriverStars(models.Model):
+    driver = models.ForeignKey('drivers.Driver',on_delete=models.CASCADE,related_name='driver_stars')
+    stars = models.DecimalField(decimal_places=2,max_digits=3)
+    
+
+class Support(models.Model):
+    driver = models.ForeignKey('drivers.Driver',on_delete=models.CASCADE,related_name="support_messages")
+    text = models.TextField(max_length=100)
+
+    
+    
